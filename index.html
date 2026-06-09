@@ -2,17 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!-- viewport-fit=cover lets the page extend under the iOS notch / status bar; user-scalable=no
+     prevents the FB/LinkedIn in-app browser from zooming the page when the user double-taps a marker. -->
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover"/>
+<meta name="theme-color" content="#000000"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="format-detection" content="telephone=no"/>
+<!-- Open Graph / link-preview tags so FB, LinkedIn, iMessage render a nice card. -->
+<meta property="og:title" content="Abdul's Brain — Interactive World History Globe"/>
+<meta property="og:description" content="Explore wars, rulers, empires, revolutions and the places that shaped them — on an interactive 3D globe."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://ahalimfau.github.io/polisci_context/"/>
+<meta property="og:image" content="https://ahalimfau.github.io/polisci_context/og-card.jpg"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Abdul's Brain — Interactive World History Globe"/>
+<meta name="twitter:description" content="Explore wars, rulers, empires, revolutions and the places that shaped them — on an interactive 3D globe."/>
 <title>Abdul's Brain — World History Globe</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet"/>
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Inter',sans-serif;color:#e8eaff}
+/* Use 100% as the base, then enhance with dvh + -webkit-fill-available so the page fills the
+   viewport reliably in iOS Safari, Chrome, FB in-app browser and LinkedIn in-app browser
+   (each of which handles the address-bar / safe-area differently). */
+html,body{
+  width:100%;
+  height:100%;
+  height:100dvh;
+  min-height:100vh;
+  min-height:-webkit-fill-available;
+  overflow:hidden;
+  background:#000;
+  font-family:'Inter',sans-serif;
+  color:#e8eaff;
+  /* Stop pull-to-refresh + horizontal swipe gestures from interfering with the globe drag. */
+  overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
 
-/* ── Mapbox globe container ── */
-#map{position:fixed;inset:0;z-index:0}
+/* ── Mapbox globe container ──
+   inset:0 with fixed positioning anchors the canvas to all four edges.
+   We ALSO set explicit width/height (set in JS on resize) as a belt-and-braces
+   fix for FB/LinkedIn webviews that don't always honor inset:0 correctly. */
+#map{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;height:100dvh;z-index:0}
 .mapboxgl-canvas{outline:none}
 /* Mapbox UI overrides to match dark UI */
 .mapboxgl-ctrl-bottom-left,
@@ -254,48 +290,64 @@ body.panel-open #tl-labels-row{}
 #panel-body::-webkit-scrollbar-track{background:transparent}
 #panel-body::-webkit-scrollbar-thumb{background:#1e2a44;border-radius:2px}
 
-/* ── Tablet (768–1024px) ── */
+/* ── Tablet + Mobile (≤1024px): hamburger replaces visible sidebar ──
+   Tablets get the same UX as phones because the iPad / tablet form factor is touch-first
+   and the always-visible sidebar wastes too much screen real estate. */
 @media (max-width:1024px){
-  #cats-sidebar{top:100px;width:170px;padding:12px 6px 8px}
-  .cat-row{font-size:12px;padding:7px 8px}
-  #panel{width:340px}
-  body.panel-open #timeline{right:340px}
-}
-/* ── Mobile (≤768px): hamburger replaces visible sidebar ── */
-@media (max-width:768px){
   #menu-toggle{display:block}
-  #logo{margin-left:54px;font-size:13px;letter-spacing:3px}
+  #logo{margin-left:60px;font-size:14px;letter-spacing:3px}
   /* Use dvh so iOS Safari's collapsing address bar doesn't clip the sidebar/panel.
      vh fallback for older browsers. */
   #cats-sidebar{
-    top:0;left:0;right:auto;bottom:0;width:260px;
+    top:0;left:0;right:auto;bottom:0;width:280px;
     height:100vh;height:100dvh;
     max-height:100vh;max-height:100dvh;
     border-radius:0;
-    padding:64px 12px 30px;
+    padding:calc(64px + env(safe-area-inset-top)) 14px calc(30px + env(safe-area-inset-bottom));
     transform:translateX(-110%);
     transition:transform .3s cubic-bezier(.2,.8,.2,1);
     box-shadow:8px 0 36px rgba(0,0,0,.6);
     overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:1500}
   #cats-sidebar.open{transform:translateX(0)}
-  #panel{width:100%;max-width:100%;height:100vh;height:100dvh}
+  #panel{width:100%;max-width:480px;height:100vh;height:100dvh;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom)}
   body.panel-open #timeline{right:0}
+  /* Push the menu-toggle below the iOS notch / status bar. */
+  #menu-toggle{top:calc(12px + env(safe-area-inset-top));
+    left:calc(14px + env(safe-area-inset-left))}
+  /* Larger tap targets on touch devices so users can actually tap markers reliably. */
+  .pb-marker{width:34px;height:34px}
+  .pb-marker.big{width:40px;height:40px}
+  .pb-marker .dot svg{width:18px;height:18px}
+  /* Hide tiny hover labels on touch (they overlap and hide other markers). */
+  .pb-marker .lbl{display:none}
+  .pb-marker.active .lbl{display:block;font-size:11px}
+  /* Ensure the cats sidebar list rows are easy to tap. */
+  .cat-row{padding:11px 12px;font-size:13.5px}
+  .cat-row .cat-dot{width:11px;height:11px}
+  /* Hide Mapbox's +/− zoom + compass buttons on touch — pinch & rotate gestures handle this,
+     and the buttons land right where the timeline year-tooltip pops up. */
+  .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl{display:none!important}
+  /* Pull Mapbox attribution into the safe area + shrink for touch. */
+  .mapboxgl-ctrl-bottom-left{margin-bottom:env(safe-area-inset-bottom)}
+}
+/* ── Mobile (≤768px): tighter spacing + smaller timeline ── */
+@media (max-width:768px){
+  #logo{margin-left:54px;font-size:13px;letter-spacing:3px}
+  #cats-sidebar{width:260px;padding:64px 12px 30px;
+    padding-top:calc(64px + env(safe-area-inset-top));
+    padding-bottom:calc(30px + env(safe-area-inset-bottom))}
   #tl-labels-row{font-size:8px;margin-top:18px}
   #tl-year-text{font-size:16px;letter-spacing:2px}
   #tl-era-text{font-size:8px;letter-spacing:1.5px}
-  #timeline{padding:0 12px 10px}
+  #timeline{padding:0 12px 10px;
+    padding-bottom:calc(10px + env(safe-area-inset-bottom))}
   #tl-outer{height:36px}
   .tl-pop-dot{width:5px;height:5px}
-  /* Larger tap targets on mobile so users can actually tap markers reliably. */
   .pb-marker{width:32px;height:32px}
   .pb-marker.big{width:38px;height:38px}
   .pb-marker .dot svg{width:16px;height:16px}
-  /* Hide tiny hover labels on mobile (they overlap and hide other markers). */
-  .pb-marker .lbl{display:none}
-  .pb-marker.active .lbl{display:block;font-size:10px}
-  /* Ensure the cats sidebar list rows are easy to tap. */
-  .cat-row{padding:10px 12px;font-size:13px}
-  .cat-row .cat-dot{width:11px;height:11px}
 }
 @media (max-width:480px){
   #logo{font-size:11px;letter-spacing:2.5px}
@@ -1836,11 +1888,18 @@ map.on("style.load",()=>{
 /* Also kick it off immediately — the function self-retries until ready */
 setTimeout(ensureConnectionsLayer,200);
 
-/* Smooth touch/drag — match Google Earth feel */
+/* Smooth touch/drag — match Google Earth feel. We only add the zoom/compass control
+   on non-touch devices (desktop) — touch users use pinch + two-finger drag instead,
+   and those buttons just clutter small screens. */
+const _isTouch=("ontouchstart" in window)||navigator.maxTouchPoints>0||window.innerWidth<=1024;
 map.on("load",()=>{
-  map.addControl(new mapboxgl.NavigationControl({visualizePitch:true}),"bottom-right");
+  if(!_isTouch){
+    map.addControl(new mapboxgl.NavigationControl({visualizePitch:true}),"bottom-right");
+  }
   ensureConnectionsLayer();
   refreshMarkers();
+  /* Belt-and-braces: force a resize after first load too. */
+  try{map.resize();}catch(_){}
 });
 
 /* ── Connection-line source + layer (drawn on Mapbox globe as great-circle arcs).
@@ -2465,7 +2524,12 @@ catsSidebar.addEventListener("click",e=>{
    Mapbox-GL caches the canvas size; if the viewport changes (rotation, the iOS
    Safari address bar collapsing, the keyboard opening, window resize), the map
    keeps rendering at the OLD size — which makes markers vanish or land in the
-   wrong screen position. Force resize on every viewport change. */
+   wrong screen position. Force resize on every viewport change.
+
+   FB / LinkedIn in-app webviews are especially bad: they initialize the page with
+   one viewport size, then the OS chrome animates in and shrinks the visible area,
+   but they DON'T fire window.resize. We therefore force several staggered resizes
+   over the first ~3 seconds after load so the map always lands centered. */
 let _resizeTimer=null;
 function syncMapViewport(){
   clearTimeout(_resizeTimer);
@@ -2480,7 +2544,20 @@ window.addEventListener("orientationchange",()=>setTimeout(syncMapViewport,250))
    give us a more reliable resize signal on mobile than the plain window resize. */
 if(window.visualViewport){
   window.visualViewport.addEventListener("resize",syncMapViewport);
+  window.visualViewport.addEventListener("scroll",syncMapViewport);
 }
+/* Force-resize multiple times early — FB/LinkedIn in-app browsers settle their
+   chrome over 1–3 seconds and the map otherwise gets stuck off-center on the right. */
+[50,200,500,900,1500,2500,4000].forEach(ms=>{
+  setTimeout(()=>{ try{map.resize();}catch(_){} },ms);
+});
+/* When the page becomes visible again (tab switch, returning from background),
+   the canvas needs another nudge. */
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden) setTimeout(syncMapViewport,80);
+});
+/* Pageshow fires on bfcache restore (back button in mobile browsers). */
+window.addEventListener("pageshow",()=>setTimeout(syncMapViewport,80));
 
 /* ── Timeline cursor tooltip — shows the decade your cursor is over ── */
 const tlCursorTip=document.getElementById("tl-cursor-tip");
