@@ -75,13 +75,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'In
 .cat-btn:hover{border-color:#4a7fc1;color:#d0daff}
 .cat-btn.on{background:linear-gradient(90deg,#0f2564,#1a4aaa);color:#fff;
   border-color:#4a8cff;box-shadow:0 0 10px rgba(74,140,255,.4)}
-#search-wrap{margin-left:auto;pointer-events:auto}
-#search{background:rgba(4,6,18,.82);color:#e8eaff;border:1px solid #1e2a44;
-  padding:6px 14px;border-radius:20px;font-size:12px;width:200px;
-  outline:none;backdrop-filter:blur(8px);font-family:'Inter',sans-serif;transition:border-color .2s}
-#search:focus{border-color:#4a8cff;box-shadow:0 0 8px rgba(74,140,255,.3)}
-#search::placeholder{color:#3a4a60}
-
 /* ── Markers ── */
 .pm-wrap{position:relative;display:flex;align-items:center;justify-content:center}
 .pm-glow{position:absolute;border-radius:50%;pointer-events:none}
@@ -184,16 +177,6 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'In
 .tl-era-lbl{text-align:center;font-size:9px;letter-spacing:1px;
   text-transform:uppercase;color:#3a5070;flex-shrink:0}
 
-/* ── Reset-to-globe-view button (top-right) ── */
-#reset-view{position:fixed;top:12px;right:230px;z-index:1600;
-  width:38px;height:38px;border-radius:50%;
-  background:rgba(8,12,28,.75);border:1px solid rgba(255,255,255,.18);
-  color:#e8eaff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);
-  box-shadow:0 4px 16px rgba(0,0,0,.5);transition:background .15s,transform .15s}
-#reset-view:hover{background:rgba(74,140,255,.6);transform:scale(1.08)}
-@media (max-width:768px){#reset-view{right:14px;top:60px}}
-
 /* ── Hamburger menu (mobile/tablet) ── */
 #menu-toggle{display:none;position:fixed;top:12px;left:14px;z-index:1600;
   background:rgba(8,12,28,.75);border:1px solid rgba(255,255,255,.18);
@@ -282,26 +265,37 @@ body.panel-open #tl-labels-row{}
 @media (max-width:768px){
   #menu-toggle{display:block}
   #logo{margin-left:54px;font-size:13px;letter-spacing:3px}
+  /* Use dvh so iOS Safari's collapsing address bar doesn't clip the sidebar/panel.
+     vh fallback for older browsers. */
   #cats-sidebar{
-    top:0;left:0;right:auto;bottom:0;width:240px;height:100vh;border-radius:0;
-    padding:60px 12px 20px;
+    top:0;left:0;right:auto;bottom:0;width:260px;
+    height:100vh;height:100dvh;
+    max-height:100vh;max-height:100dvh;
+    border-radius:0;
+    padding:64px 12px 30px;
     transform:translateX(-110%);
     transition:transform .3s cubic-bezier(.2,.8,.2,1);
     box-shadow:8px 0 36px rgba(0,0,0,.6);
-    overflow-y:auto;z-index:1500}
+    overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:1500}
   #cats-sidebar.open{transform:translateX(0)}
-  #panel{width:100%;max-width:100%}
+  #panel{width:100%;max-width:100%;height:100vh;height:100dvh}
   body.panel-open #timeline{right:0}
-  #search-wrap{display:none}
   #tl-labels-row{font-size:8px;margin-top:18px}
   #tl-year-text{font-size:16px;letter-spacing:2px}
   #tl-era-text{font-size:8px;letter-spacing:1.5px}
   #timeline{padding:0 12px 10px}
   #tl-outer{height:36px}
   .tl-pop-dot{width:5px;height:5px}
-  .pb-marker{width:26px;height:26px}
-  .pb-marker.big{width:32px;height:32px}
-  .pb-marker .dot svg{width:14px;height:14px}
+  /* Larger tap targets on mobile so users can actually tap markers reliably. */
+  .pb-marker{width:32px;height:32px}
+  .pb-marker.big{width:38px;height:38px}
+  .pb-marker .dot svg{width:16px;height:16px}
+  /* Hide tiny hover labels on mobile (they overlap and hide other markers). */
+  .pb-marker .lbl{display:none}
+  .pb-marker.active .lbl{display:block;font-size:10px}
+  /* Ensure the cats sidebar list rows are easy to tap. */
+  .cat-row{padding:10px 12px;font-size:13px}
+  .cat-row .cat-dot{width:11px;height:11px}
 }
 @media (max-width:480px){
   #logo{font-size:11px;letter-spacing:2.5px}
@@ -313,7 +307,6 @@ body.panel-open #tl-labels-row{}
 <body>
 
 <button id="menu-toggle" aria-label="Open menu"><span class="bars">☰</span><span class="x">✕</span></button>
-<button id="reset-view" aria-label="Reset to globe view" title="Reset to globe view">🌐</button>
 <div id="tl-cursor-tip"></div>
 
 <div id="map"></div>
@@ -321,8 +314,6 @@ body.panel-open #tl-labels-row{}
 <!-- Top bar -->
 <header id="topbar">
   <div id="logo">ABDUL'S BRAIN</div>
-  <div style="flex:1"></div>
-  <div id="search-wrap"><input id="search" type="text" placeholder="Search history…"/></div>
 </header>
 
 <!-- Left sidebar: category + continent filters (clickable) -->
@@ -2267,15 +2258,6 @@ updateFilterCounts();
 /* ═══════════════════════════════════════════
    SEARCH
 ═══════════════════════════════════════════ */
-document.getElementById("search").addEventListener("input",e=>{
-  searchQ=e.target.value.trim().toLowerCase();
-  refreshMarkers();
-  if(searchQ){
-    const first=NODES.find(n=>n.label.toLowerCase().includes(searchQ)&&nodeVisible(n));
-    if(first)flyToLngLat(first.lng,first.lat,4,1500);
-  }
-});
-
 /* ═══════════════════════════════════════════
    NON-LINEAR TIMELINE
 ═══════════════════════════════════════════ */
@@ -2461,24 +2443,6 @@ function onTlEnd(e){
 
 setDecade(2020,{fly:false});
 
-/* ── Reset-to-globe-view button ── */
-const resetViewBtn=document.getElementById("reset-view");
-resetViewBtn.addEventListener("click",()=>{
-  /* Exit focus mode + reset the camera to the global 360° overview */
-  exitFocusMode();
-  map.setMaxBounds(null);
-  map.flyTo({
-    center:[20,20],
-    zoom:1.6,
-    pitch:0,
-    bearing:0,
-    duration:1500,
-    essential:true,
-    curve:1.4
-  });
-  refreshMarkers();
-});
-
 /* ── Hamburger menu toggle (mobile/tablet) ── */
 const menuToggle=document.getElementById("menu-toggle");
 const catsSidebar=document.getElementById("cats-sidebar");
@@ -2486,13 +2450,37 @@ menuToggle.addEventListener("click",()=>{
   catsSidebar.classList.toggle("open");
   menuToggle.classList.toggle("open");
 });
-/* Auto-close menu on category click (mobile only) */
+/* Auto-close menu on category click (mobile only).
+   After the sidebar slides closed we refresh markers so the newly-filtered
+   nodes render against the now-uncovered map area. */
 catsSidebar.addEventListener("click",e=>{
   if(e.target.closest(".cat-row")&&window.innerWidth<=768){
     catsSidebar.classList.remove("open");
     menuToggle.classList.remove("open");
+    setTimeout(()=>{ try{map.resize();}catch(_){} refreshMarkers(); },320);
   }
 });
+
+/* ── Mobile/responsive viewport syncing ──
+   Mapbox-GL caches the canvas size; if the viewport changes (rotation, the iOS
+   Safari address bar collapsing, the keyboard opening, window resize), the map
+   keeps rendering at the OLD size — which makes markers vanish or land in the
+   wrong screen position. Force resize on every viewport change. */
+let _resizeTimer=null;
+function syncMapViewport(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer=setTimeout(()=>{
+    try{map.resize();}catch(_){}
+    refreshMarkers();
+  },120);
+}
+window.addEventListener("resize",syncMapViewport);
+window.addEventListener("orientationchange",()=>setTimeout(syncMapViewport,250));
+/* iOS Safari fires visualViewport events when the address bar shows/hides — these
+   give us a more reliable resize signal on mobile than the plain window resize. */
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",syncMapViewport);
+}
 
 /* ── Timeline cursor tooltip — shows the decade your cursor is over ── */
 const tlCursorTip=document.getElementById("tl-cursor-tip");
