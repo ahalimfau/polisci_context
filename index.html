@@ -19,6 +19,12 @@
 <meta name="twitter:card" content="summary_large_image"/>
 <meta name="twitter:title" content="Abdul's Brain — Interactive World History Globe"/>
 <meta name="twitter:description" content="Explore wars, rulers, empires, revolutions and the places that shaped them — on an interactive 3D globe."/>
+<!-- Content Security Policy: restricts where scripts/styles/connections can go.
+     unsafe-inline is required because all JS/CSS is inline (single-file app).
+     frame-ancestors 'none' prevents clickjacking. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://api.mapbox.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.mapbox.com; font-src https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.mapbox.com; connect-src 'self' https://*.mapbox.com https://events.mapbox.com; worker-src blob:; frame-ancestors 'none';"/>
+<meta http-equiv="X-Content-Type-Options" content="nosniff"/>
+<meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin"/>
 <title>Abdul's Brain — World History Globe</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet"/>
@@ -4892,7 +4898,7 @@ function flyToLngLat(lng,lat,zoom=4,dur=1500){
 ═══════════════════════════════════════════ */
 const tip=document.getElementById("tip");
 function showTip(node,evt){
-  tip.innerHTML=`<strong>${node.label}</strong> &nbsp;<span style="color:#4a7fc1;font-size:10px">${fmtY(node.decade)} · ${node.era}</span>`;
+  tip.innerHTML=`<strong>${esc(node.label)}</strong> &nbsp;<span style="color:#4a7fc1;font-size:10px">${fmtY(node.decade)} · ${esc(node.era)}</span>`;
   tip.classList.add("show");
   tip.style.left=(evt.clientX+14)+"px";tip.style.top=(evt.clientY+10)+"px";
 }
@@ -4965,7 +4971,8 @@ function openPanel(node){
       });
     });
   }else{panelRel.innerHTML="";}
-  panelSrc.innerHTML=`<a class="src-a" href="${node.source_url}" target="_blank" rel="noopener">🔗 ${esc(node.source_label)} →</a>`;
+  const _safeUrl=/^https?:\/\//i.test(node.source_url||"")?node.source_url:"#";
+  panelSrc.innerHTML=`<a class="src-a" href="${esc(_safeUrl)}" target="_blank" rel="noopener noreferrer">🔗 ${esc(node.source_label)} →</a>`;
   panel.classList.add("open");
   document.body.classList.add("panel-open");
   /* Fit camera to ALL focused markers (focused + neighbors) so connection lines
